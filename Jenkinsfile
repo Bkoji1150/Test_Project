@@ -39,7 +39,7 @@ pipeline {
         stage('docker build and Tag Application') {
             steps {
                  sh 'cp ./webapp/target/webapp.war .'
-                 sh 'docker build -t ${IMAGENAME} .' # an docker image will be build
+                 sh 'docker build -t ${IMAGENAME} .'
                  sh 'docker tag ${IMAGENAME}:${IMAGE_TAG} ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
             }
         }
