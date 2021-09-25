@@ -54,7 +54,7 @@ pipeline {
         } 
         stage('Login To ECR') {
             steps {
-                sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY} --force-new-deployment' 
+                sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY} --force-new-deployment --region ${AWS_REGION}' 
             }
         }
          stage('Publish the Artifact to ECR') {
