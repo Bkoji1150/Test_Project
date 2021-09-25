@@ -54,7 +54,7 @@ pipeline {
         } 
         stage('Login To ECR') {
             steps {
-                sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY} --force-new-deployment --region ${AWS_REGION}' 
+                sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY}'
             }
         }
          stage('Publish the Artifact to ECR') {
@@ -65,13 +65,19 @@ pipeline {
         } 
         stage('update ecs service') {
             steps {
-                sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE}'
+                sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE}  --force-new-deployment --region ${AWS_REGION}'
             }
         }  
        stage('wait ecs service stable') {
             steps {
-                sh 'docker push ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
+                sh '/usr/local/bin/aws ecs wait --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE}'
             }
+        }
+    }
+    post{
+        always {
+            junit 'target/surefire-reports/TEST-*.XML'
+            deleteDir()
         }
     }
 }
