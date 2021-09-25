@@ -65,7 +65,7 @@ pipeline {
         } 
         stage('update ecs service') {
             steps {
-                sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --region ${AWS_REGION} --force-new-deployment true'
+                sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --region ${AWS_REGION}'
             }
         }  
        stage('wait ecs service stable') {
