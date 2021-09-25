@@ -74,7 +74,7 @@ pipeline {
             }
         }
     }
-    poost{
+    post{
         always{
             junit 'target/surefire-reports/TEST-*.xml'
             deleteDir()
