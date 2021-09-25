@@ -70,8 +70,14 @@ pipeline {
         }  
        stage('wait ecs service stable') {
             steps {
-                sh '/usr/local/bin/aws ecs wait --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE}'
+                sh '/usr/local/bin/aws ecs wait services-stable --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --region ${AWS_REGION}'
             }
+        }
+    }
+    poost{
+        always{
+            junit 'target/surefire-reports/TEST-*.xml'
+            deleteDir()
         }
     }
 }
