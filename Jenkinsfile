@@ -7,7 +7,7 @@ pipeline {
     environment { 
         AWS_REGION = 'us-west-2'
         ECRREGISTRY = '735972722491.dkr.ecr.us-west-2.amazonaws.com' 
-        IMAGENAME = 'haplet-registory'
+        IMAGENAME = 'haplet-registory' 
         IMAGE_TAG = 'latest'
         ECS_CLUSTER = 'myapp-cluster'
         ECS_SERVICE = 'myapp-service'
@@ -29,10 +29,10 @@ pipeline {
             }
         }
          stage("Static Code analysis With SonarQube") {
-            agent any
+            agent any                                               
             steps {
               withSonarQubeEnv('sonnar-scanner') {
-                sh "mvn clean package sonar:sonar -Dsonar.host.url=http://34.212.134.62:9000 -Dsonar.login=cc92b9fece4552a752667e25ff8a1064f7447e3d -Dsonar.projectKey=jenkins -Dsonar.projectName=haplet -Dsonar.projectVersion=1.0"
+                sh "mvn clean package sonar:sonar -Dsonar.host.url=http://54.213.169.168:9000 -Dsonar.login=cc92b9fece4552a752667e25ff8a1064f7447e3d -Dsonar.projectKey=jenkins -Dsonar.projectName=haplet -Dsonar.projectVersion=1.0"
               }
             }
           }
