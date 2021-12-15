@@ -8,7 +8,6 @@ pipeline {
         AWS_REGION = 'us-east-2'
         ECRREGISTRY = '735972722491.dkr.ecr.us-west-2.amazonaws.com' 
         sonarScanResults = null 
-        slack_message = slackSend channel: '#general', color: 'Good', message: 'Your build was unseccusful'
     }
     stages {
        stage ('Cloning git & Build') {
@@ -36,8 +35,9 @@ pipeline {
           }
           stage ("Waiting for Quality Gate Result") {
               steps {
-                  timeout:(time: 3, unit: "MINUTES")
+                  timeout:(time: 3, unit: "MINUTES") {
                   waitForQualityGate abortPipeline: true 
+              }
               }
           }
 
