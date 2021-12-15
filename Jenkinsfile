@@ -2,7 +2,7 @@ pipeline {
     agent any
     tools {
         maven 'mvn'
-        jdk   'JAVA_HOME'
+        jdk   'jdk'
     }
     environment { 
         AWS_REGION = 'us-east-2'
