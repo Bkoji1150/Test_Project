@@ -2,7 +2,7 @@ pipeline {
     agent any
     tools {
         maven 'mvn'
-        jdk 'jdk'
+        jdk   'JAVA_HOME'
     }
     environment { 
         AWS_REGION = 'us-east-2'
@@ -12,9 +12,6 @@ pipeline {
     stages {
        stage ('Cloning git & Build') {
           steps {
-              sh "export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.302.b08-0.amzn2.0.1.x86_64"
-              sh "export M2_HOME=/opt/maven/apache-maven-3.8.4"
-              sh "M2=$M2_HOME/bin"
                 checkout scm
             }
         }
