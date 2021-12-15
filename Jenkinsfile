@@ -29,7 +29,7 @@ pipeline {
             agent any                                               
             steps {
               withSonarQubeEnv(installationName: 'sonar') {
-                sh "mvn clean package"
+                sh  './mvnw clean org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.0.2155:sonar'
               }
             }
           }
@@ -136,7 +136,7 @@ pipeline {
                     //     echo e.getMessage()
                     // }(
 
-                    slackSend channel: '#general', color: 'Good', message: "SonarQube Report: ${sonarScanResults}"
+                    // slackSend channel: '#general', color: 'Good', message: "SonarQube Report: ${sonarScanResults}"
                 }
             }
         }
