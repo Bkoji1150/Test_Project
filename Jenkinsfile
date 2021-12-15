@@ -1,16 +1,14 @@
 pipeline {
     agent any
     tools {
-        maven 'maven3.8'
+        maven 'mvn'
         jdk 'jdk'
     }
     environment { 
-        AWS_REGION = 'us-west-2'
+        AWS_REGION = 'us-east-2'
         ECRREGISTRY = '735972722491.dkr.ecr.us-west-2.amazonaws.com' 
-        IMAGENAME = 'haplet-registory' 
-        IMAGE_TAG = 'latest'
-        ECS_CLUSTER = 'myapp-cluster'
-        ECS_SERVICE = 'myapp-service'
+        sonarScanResults = null 
+        slack_message = slackSend channel: '#general', color: 'Good', message: 'Your build was unseccusful'
     }
     stages {
        stage ('Cloning git & Build') {
@@ -31,53 +29,115 @@ pipeline {
          stage("Static Code analysis With SonarQube") {
             agent any                                               
             steps {
-              withSonarQubeEnv('sonnar-scanner') {
-                sh "mvn clean package sonar:sonar -Dsonar.host.url=http://54.213.169.168:9000 -Dsonar.login=cc92b9fece4552a752667e25ff8a1064f7447e3d -Dsonar.projectKey=jenkins -Dsonar.projectName=haplet -Dsonar.projectVersion=1.0"
+              withSonarQubeEnv(installationName: "sonar") {
+                sh "mvn clean package"
               }
             }
           }
-        stage('docker build and Tag Application') {
-            steps {
-                 sh 'cp ./webapp/target/webapp.war .'
-                 sh 'docker build -t ${IMAGENAME} .'
-                 sh 'docker tag ${IMAGENAME}:${IMAGE_TAG} ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
-            }
-        }
-        stage('Deployment Approval') {
-            steps {
-              script {
-                timeout(time: 20, unit: 'MINUTES') {
-                 input(id: 'Deploy Gate', message: 'Deploy Application to Dev ?', ok: 'Deploy')
-                 }
-               }
-            }
-        } 
-        stage('Login To ECR') {
-            steps {
-                sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY}'
-            }
-        }
-         stage('Publish the Artifact to ECR') {
-            steps {
-                sh 'docker push ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
-                sh 'docker rmi ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
-            }
-        } 
-        stage('update ecs service') {
-            steps {
-                sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --force-new-deployment --region ${AWS_REGION}'
-            }
-        }  
-       stage('wait ecs service stable') {
-            steps {
-                sh '/usr/local/bin/aws ecs wait services-stable --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --region ${AWS_REGION}'
-            }
-        }
+          stage ("Waiting for Quality Gate Result") {
+              steps {
+                  timeout:(time: 3, unit: "MINUTES")
+                  waitForQualityGate abortPipeline: true 
+              }
+          }
+
+
+        // stage('docker build and Tag Application') {
+        //     steps {
+        //          sh 'cp ./webapp/target/webapp.war .'
+        //          sh 'docker build -t ${IMAGENAME} .'
+        //          sh 'docker tag ${IMAGENAME}:${IMAGE_TAG} ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
+        //     }
+        // }
+        // stage('Deployment Approval') {
+        //     steps {
+        //       script {
+        //         timeout(time: 20, unit: 'MINUTES') {
+        //          input(id: 'Deploy Gate', message: 'Deploy Application to Dev ?', ok: 'Deploy')
+        //          }
+        //        }
+        //     }
+        // } 
+    //     stage('Login To ECR') {
+    //         steps {
+    //             sh '/usr/local/bin/aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECRREGISTRY}'
+    //         }
+    //     }
+    //      stage('Publish the Artifact to ECR') {
+    //         steps {
+    //             sh 'docker push ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
+    //             sh 'docker rmi ${ECRREGISTRY}/${IMAGENAME}:${IMAGE_TAG}'
+    //         }
+    //     } 
+    //     stage('update ecs service') {
+    //         steps {
+    //             sh '/usr/local/bin/aws ecs update-service --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --force-new-deployment --region ${AWS_REGION}'
+    //         }
+    //     }  
+    //    stage('wait ecs service stable') {
+    //         steps {
+    //             sh '/usr/local/bin/aws ecs wait services-stable --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --region ${AWS_REGION}'
+    //         }
+    //     }
     }
-    post{
-        always{
-            junit 'target/surefire-reports/TEST-*.xml'
-            deleteDir()
+        post {
+            success {
+                script {
+                    buildStatusMessage = """
+                        New image built and tagged.
+                        Version: ${VERSION}
+                    """.stripIndent()
+                    if (sonarScanResults != null) {
+                        buildStatusMessage += "SonarQube Report: ${sonarScanResults}"
+                    }
+
+                    String cdJobName = "${CELL_FULL_NAME}-cd/${URLEncoder.encode(params.CD_BRANCH, 'UTF-8')}"
+                    Boolean cdJobExists = jenkins.model.Jenkins.instance.getItemByFullName(cdJobName) != null
+                    if (params.DEPLOY_ENVIRONMENT !=  '') {
+                        if (cdJobExists) {
+                            build job: cdJobName,
+                            parameters:
+                            [
+                                string(name: 'PROPERTY_FILE_PATH', value: "${params.PROPERTY_FILE_PATH}"),
+                                string(name: 'ENVIRONMENT', value: "${params.DEPLOY_ENVIRONMENT}"),
+                                booleanParam(name: 'DEPLOY_LATEST', value: true),
+                                string(name:'TESTS_BRANCH', value: "${params.TESTS_BRANCH}"),
+                                booleanParam(name:'AUTO_APPROVE', value: true)
+                            ]
+                        } else {
+                            echo "CD Job '${cdJobName}' does not exist. Skipping trigger..."
+                        }
+                    }
+                }
+            }
+            failure {
+                script {
+                    if (sonarScanResults != null) {
+                         slackSend channel: '#general', color: 'Good', message: "SonarQube Report: ${sonarScanResults}"
+                        buildStatusMessage = "SonarQube Report: ${sonarScanResults}"
+                    }
+                }
+            }
+            cleanup {
+                script {
+                    try {
+                        workspace.tearDown(
+                            CELL_FULL_NAME,
+                            PROPERTIES.removeImage == null ? false : PROPERTIES.removeImage as Boolean
+                        )
+                    } catch (Exception e) {
+                        echo 'An exception occurred while tearing down the workspace:'
+                        echo e.getMessage()
+                    }
+                    // try {
+                    //     metrics.publishCloudwatchBuildMetrics()
+                    // } catch (Exception e) {
+                    //     echo 'An exception occurred while publishing Cloudwatch Metrics:'
+                    //     echo e.getMessage()
+                    // }(
+
+                    slackSend channel: '#general', color: 'Good', message: "SonarQube Report: ${sonarScanResults}"
+                }
+            }
         }
-    }
 }
