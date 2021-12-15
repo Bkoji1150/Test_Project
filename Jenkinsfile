@@ -28,14 +28,14 @@ pipeline {
          stage("Static Code analysis With SonarQube") {
             agent any                                               
             steps {
-              withSonarQubeEnv(installationName: "sonar") {
+              withSonarQubeEnv(installationName: 'sonar') {
                 sh "mvn clean package"
               }
             }
           }
           stage ("Waiting for Quality Gate Result") {
               steps {
-                  timeout:(time: 3, unit: "MINUTES") {
+                  timeout:(time: 3, unit: 'MINUTES') {
                   waitForQualityGate abortPipeline: true 
               }
               }
