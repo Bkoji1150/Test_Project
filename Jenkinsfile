@@ -1,2 +1,2 @@
 @Library('jenkins-share-libary') _
-kojitechsCiPipline 
+kojitechsCiPipline()
