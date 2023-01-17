@@ -1,44 +1,62 @@
  pipeline {
        agent any
+    tools {
+        maven 'mvn'
+    }
+        parameters { 
+        string(name: 'REPO_NAME', description: 'PROVIDER THE NAME OF DOCKERHUB IMAGE', defaultValue: 'kojitechswebapp',  trim: true)
+        string(name: 'REPO_URL', description: 'PROVIDER THE NAME OF DOCKERHUB/ECR URL', defaultValue: '735972722491.dkr.ecr.us-east-1.amazonaws.com',  trim: true)
+        string(name: 'AWS_REGION', description: 'AWS REGION', defaultValue: 'us-east-1')
+        choice(name: 'ACTION', choices: ['deploy', 'deploy', 'do-not-deploy'], description: 'Select action, BECAREFUL IF YOU SELECT DESTROY TO PROD')
+    }
+    environment {
+            tag = sh(returnStdout: true, script: "git rev-parse --short=10 HEAD").trim()
+        }
        stages {
            stage("Checkout Code") {
                steps {
                 checkout scm
             }
            }
-           stage('Compile') {
-            steps {
-                sh 'mvn clean'
+            stage('mvn Compile') {
+                steps {
+                    sh 'mvn clean'
+                }
             }
-        }
-             stage('Unit Tests Execution') {
-            steps {
-                sh 'mvn surefire:test'
+            stage('Unit Tests Execution') {
+                steps {
+                    sh 'mvn surefire:test'
+                }
             }
-        }
-           stage("Static Code analysis With SonarQube") {                                               
-            steps {
+            stage("Static Code analysis With SonarQube") {                                               
+                steps {
               withSonarQubeEnv(installationName: 'sonar') {
                 sh  'mvn sonar:sonar'
               }
+                }
             }
-          }
-          stage ("Waiting for Quality Gate Result") {
-              steps {
-                  timeout(time: 3, unit: 'MINUTES') {
-                  waitForQualityGate abortPipeline: true 
-              }
-              }
-          }
-        //      stage ("Pushing .war file to artifactory") {
-        //       steps {
-        //           timeout(time: 3, unit: 'MINUTES') {
-        //           waitForQualityGate abortPipeline: true 
-        //       }
-        //       }
-        //   }
-
-       } 
+            stage ("Waiting for Quality Gate Result") {
+                steps {
+                    timeout(time: 3, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+                }
+            }   
+            stage ("Docker Build Image") {
+                steps {
+                    script {         
+                    try {
+                        sh""" 
+                            docker images 
+                            """ 
+                    }catch (Exception e) {
+                        echo 'An exception occurred while pushing image to docker hub'
+                        echo e.getMessage()
+                }
+                }
+                }
+            }
+          } 
       post {
         success {
             slackSend botUser: true, channel: 'jenkins_notification', color: 'good',
