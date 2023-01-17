@@ -5,12 +5,6 @@
            jdk 'jdk'
        }
        stages {
-           stage("Tools initialization") {
-               steps {
-                   sh "mvn --version"
-                   sh "java -version"
-               }
-           }
            stage("Checkout Code") {
                steps {
                 checkout scm
